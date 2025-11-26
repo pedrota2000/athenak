@@ -1,0 +1,100 @@
+<comment>
+problem   = 3D turbulence simulation
+reference = 
+
+<job>
+basename  = Turb      # problem ID: basename of output filenames
+
+<mesh>
+nghost    = 4         # Number of ghost cells
+nx1       = 1024      # Number of zones in X1-direction
+x1min     = -0.5      # minimum value of X1
+x1max     = 0.5       # maximum value of X1
+ix1_bc    = periodic  # Inner-X1 boundary condition flag
+ox1_bc    = periodic  # Outer-X1 boundary condition flag
+
+nx2       = 1024      # Number of zones in X2-direction
+x2min     = -0.5      # minimum value of X2
+x2max     = 0.5       # maximum value of X2
+ix2_bc    = periodic  # Inner-X2 boundary condition flag
+ox2_bc    = periodic  # Outer-X2 boundary condition flag
+
+nx3       = 1024      # Number of zones in X3-direction
+x3min     = -0.5      # minimum value of X3
+x3max     = 0.5       # maximum value of X3
+ix3_bc    = periodic  # Inner-X3 boundary condition flag
+ox3_bc    = periodic  # Outer-X3 boundary condition flag
+
+<meshblock>
+nx1       = 128        # Number of cells in each MeshBlock, X1-dir
+nx2       = 128        # Number of cells in each MeshBlock, X2-dir
+nx3       = 128        # Number of cells in each MeshBlock, X3-dir
+
+<time>
+evolution  = dynamic  # dynamic/kinematic/static
+integrator = rk2      # time integration algorithm
+cfl_number = 0.3      # The Courant, Friedrichs, & Lewy (CFL) Number
+nlim       = -1       # cycle limit
+tlim       = 20.0      # time limit (4 for the higher mach, 20 for lower)
+ndiag      = 1        # cycles between diagostic output
+
+<hydro>
+eos         = ideal      # EOS type
+reconstruct = plm        # spatial reconstruction method
+rsolver     = hllc       # Riemann-solver to be used
+gamma       = 1.000000  # gamma = C_p/C_v
+pfloor      = 1e-15
+dfloor      = 1e-15
+sfloor      = 1e-15
+tfloor      = 1e-15
+fofc        = true
+nscalars    = 5
+ 
+<problem>
+user_srcs = true
+
+<turb_driving>
+type = hydro
+turb_flag = 2  # 1 for decaying, 2 for driven
+tcorr = 5.0    # (5 for lower mach number) # ~ L / 2 pi urms
+dedt  = 2e-3 #0.25   # Mach 0.5    # ~ urms^3 / 2 L  # lower mach, dedt=2e-3
+nlow  = 1      # 4
+nhigh = 3      # 8
+spect_form = 1 # parabolic driving
+npeak = 2
+sol_fraction = 1.0 # solenoidal driving
+
+<output1>
+file_type = hst
+dt        = 0.01
+
+<output2>
+file_type = bin
+variable  = hydro_w
+dt        = 2.5        # half a correlation time maybe
+
+#<output3>
+#file_type = bin
+#variable  = hydro_w
+#dt        = 0.01
+#slice_x1  = 0.0
+#id        = slice_x1
+
+#<output4>
+#file_type = bin
+#variable  = hydro_w
+#dt        = 0.1
+#slice_x2  = 0.0
+#id        = slice_x2
+
+<output5>
+file_type = bin
+variable  = hydro_w
+dt        = 0.15625 #0.03125
+slice_x3  = 0.0
+id        = slice_x3
+
+#<output6>
+#file_type = bin
+#variable = turb_force
+#dt = 0.1

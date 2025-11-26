@@ -33,14 +33,14 @@ nx2       = 256         # Number of cells in each MeshBlock, X2-dir
 nx3       = 1           # Number of cells in each MeshBlock, X3-dir
 
 <coord>
-special_rel = true
+special_rel = false
 
 <time>
 evolution  = dynamic    # dynamic/kinematic/static
 integrator = rk3        # time integration algorithm
 cfl_number = 0.4        # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim       = 100000     # cycle limit
-tlim       = 10.0        # time limit
+tlim       = 100.0        # time limit
 ndiag      = 1          # cycles between diagostic output
 
 <hydro>
@@ -48,12 +48,13 @@ eos         = ideal     # EOS type
 reconstruct = wenoz     # spatial reconstruction method
 rsolver     = hllc      # Riemann-solver to be used
 nscalars    = 1         # number of passive scalars in hydro
-gamma       = 1.3333333333333333   # gamma = C_p/C_v
+gamma       = 1.33333333  # gamma = C_p/C_v
 
 <problem>
-iprob = 3               # flag to select test
+iprob = 6               # flag to select test
 amp   = 0.1            # amplitude of sinusoidal perturbation
 vshear = 0.3            # shear velocity
+sigma = 0.1
 
 <output1>
 file_type  = hst       # History data dump
@@ -62,5 +63,5 @@ dt         = 0.0001      # time increment between outputs
 <output2>
 file_type  = vtk       # Binary data dump
 variable   = hydro_w   # variables to be output
-dt         = 0.001      # time increment between outputs
+dt         = 0.01      # time increment between outputs
 

@@ -154,8 +154,42 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
       pres = 1.0;
       vx = rval;
       vy = vshear*sin(2.*M_PI*x1v);
+      if (is_relativistic) {
+          u00 = 1.0/sqrt(1.0 - vx*vx - vy*vy);
+      }
+    // Subsonic conditions
+    } else if (iprob == 5) {
+      pres = 1000.0;
+      dens = 1.0 ;
+      // compute adiabatic sound speed (non-relativistic)
+      double cs = sqrt(1.000001 * pres / dens);
+
+      // set velocity amplitudes so max speed = M_target * cs
+      rval = 0.1 * cs * 2.0 * (rand_gen.frand() - 0.5);
+      vx = rval;
+      vy = 0.1 * cs * sin(2.0 * M_PI * x1v);
+      if (is_relativistic) {
+        u00 = 1.0 / sqrt(1.0 - vx * vx - vy * vy);
+      }
     // Lecoanet test ICs
-    } else if (iprob == 4) {
+    }else if (iprob == 6) {
+      pres = 1000.0;
+      dens = 1.0 ;
+      // compute adiabatic sound speed (non-relativistic)
+      double cs = sqrt(1.33333333 * pres / dens);
+
+      // set velocity amplitudes so max speed = M_target * cs
+      // Sum multiple wavelengths with different amplitudes
+      vx = cs * (0.02 * sin(10.0 * M_PI * x2v) 
+      + 0.01 * sin(23.0 * M_PI * x2v)
+      + 0.005 * sin(37.0 * M_PI * x2v));
+
+      vy = cs * (0.1 * sin(2.0 * M_PI * x1v));
+      if (is_relativistic) {
+        u00 = 1.0 / sqrt(1.0 - vx * vx - vy * vy);
+      }
+    // Lecoanet test ICs
+    }else if (iprob == 4) {
       pres = 10.0;
       Real a = 0.05;
       dens = 1.0 + 0.5*drho_rho0*(tanh((x2v + 0.5)/a) - tanh((x2v - 0.5)/a));
