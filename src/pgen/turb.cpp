@@ -48,29 +48,55 @@ void ProblemGenerator::UserProblem(ParameterInput *pin, const bool restart) {
   Real cs = pin->GetOrAddReal("eos","iso_sound_speed",1.0);
   Real beta = pin->GetOrAddReal("problem","beta",1.0);
 
-  // Initialize Hydro variables -------------------------------
-  if (pmbp->phydro != nullptr) {
-    Real d_i = pin->GetOrAddReal("problem","d_i",1.0);
-    Real d_n = pin->GetOrAddReal("problem","d_n",1.0);
-    auto &u0 = pmbp->phydro->u0;
-    EOS_Data &eos = pmbp->phydro->peos->eos_data;
-    Real gm1 = eos.gamma - 1.0;
-    Real p0 = 1.0/eos.gamma;
-
-    // Set initial conditions
-    par_for("pgen_turb", DevExeSpace(),0,(pmbp->nmb_thispack-1),ks,ke,js,je,is,ie,
-    KOKKOS_LAMBDA(int m, int k, int j, int i) {
-      u0(m,IDN,k,j,i) = d_n;
-      u0(m,IM1,k,j,i) = 0.0;
-      u0(m,IM2,k,j,i) = 0.0;
-      u0(m,IM3,k,j,i) = 0.0;
-      if (eos.is_ideal) {
-        u0(m,IEN,k,j,i) = p0/gm1 +
-           0.5*(SQR(u0(m,IM1,k,j,i)) + SQR(u0(m,IM2,k,j,i)) +
-           SQR(u0(m,IM3,k,j,i)))/u0(m,IDN,k,j,i);
-      }
-    });
-  }
+// Initialize Hydro variables -------------------------------
+if (pmbp->phydro != nullptr) {
+  Real d_i = pin->GetOrAddReal("problem","d_i",1.0);
+  Real d_n = pin->GetOrAddReal("problem","d_n",1.0);
+  auto &u0 = pmbp->phydro->u0;
+  auto &size = pmbp->pmb->mb_size;  // ADD THIS LINE
+  EOS_Data &eos = pmbp->phydro->peos->eos_data;
+  Real gm1 = eos.gamma - 1.0;
+  Real p0 = 1.0/eos.gamma;
+  int nscalars = pin->GetOrAddInteger("hydro","nscalars",0);
+  
+  // Set initial conditions
+  par_for("pgen_turb", DevExeSpace(),0,(pmbp->nmb_thispack-1),ks,ke,js,je,is,ie,
+  KOKKOS_LAMBDA(int m, int k, int j, int i) {
+    u0(m,IDN,k,j,i) = d_n;
+    u0(m,IM1,k,j,i) = 0.0;
+    u0(m,IM2,k,j,i) = 0.0;
+    u0(m,IM3,k,j,i) = 0.0;
+    if (eos.is_ideal) {
+      u0(m,IEN,k,j,i) = p0/gm1 +
+         0.5*(SQR(u0(m,IM1,k,j,i)) + SQR(u0(m,IM2,k,j,i)) +
+         SQR(u0(m,IM3,k,j,i)))/u0(m,IDN,k,j,i);
+    }
+    
+    // Initialize scalars with multiple Gaussian blobs
+    for (int n=0; n<nscalars; ++n) {
+      Real x1 = CellCenterX(i-is, indcs.nx1, size.d_view(m).x1min, size.d_view(m).x1max);
+      Real x2 = CellCenterX(j-js, indcs.nx2, size.d_view(m).x2min, size.d_view(m).x2max);
+      Real x3 = CellCenterX(k-ks, indcs.nx3, size.d_view(m).x3min, size.d_view(m).x3max);
+      
+      Real sigma = 0.1;  // Width of blobs
+      Real scalar_value = 0.0;
+      
+      // Blob 1 at (0.2, 0.0, 0.0)
+      Real r1_sq = (x1-0.2)*(x1-0.2) + x2*x2 + x3*x3;
+      scalar_value += exp(-r1_sq/(2.0*sigma*sigma));
+      
+      // Blob 2 at (-0.2, 0.0, 0.0)
+      Real r2_sq = (x1+0.2)*(x1+0.2) + x2*x2 + x3*x3;
+      scalar_value += exp(-r2_sq/(2.0*sigma*sigma));
+      
+      // Blob 3 at (0.0, 0.2, 0.0)
+      Real r3_sq = x1*x1 + (x2-0.2)*(x2-0.2) + x3*x3;
+      scalar_value += exp(-r3_sq/(2.0*sigma*sigma));
+      
+      u0(m,IEN+1+n,k,j,i) = d_n * scalar_value;
+    }
+  });
+}
 
   // Initialize MHD variables ---------------------------------
   if (pmbp->pmhd != nullptr) {
