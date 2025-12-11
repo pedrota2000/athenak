@@ -7,28 +7,28 @@ basename  = Turb      # problem ID: basename of output filenames
 
 <mesh>
 nghost    = 4         # Number of ghost cells
-nx1       = 256      # Number of zones in X1-direction
+nx1       = 128      # Number of zones in X1-direction
 x1min     = -0.5      # minimum value of X1
 x1max     = 0.5       # maximum value of X1
 ix1_bc    = periodic  # Inner-X1 boundary condition flag
 ox1_bc    = periodic  # Outer-X1 boundary condition flag
 
-nx2       = 256      # Number of zones in X2-direction
+nx2       = 128      # Number of zones in X2-direction
 x2min     = -0.5      # minimum value of X2
 x2max     = 0.5       # maximum value of X2
 ix2_bc    = periodic  # Inner-X2 boundary condition flag
 ox2_bc    = periodic  # Outer-X2 boundary condition flag
 
-nx3       = 256      # Number of zones in X3-direction
+nx3       = 128      # Number of zones in X3-direction
 x3min     = -0.5      # minimum value of X3
 x3max     = 0.5       # maximum value of X3
 ix3_bc    = periodic  # Inner-X3 boundary condition flag
 ox3_bc    = periodic  # Outer-X3 boundary condition flag
 
 <meshblock>
-nx1       = 256        # Number of cells in each MeshBlock, X1-dir
-nx2       = 256        # Number of cells in each MeshBlock, X2-dir
-nx3       = 256        # Number of cells in each MeshBlock, X3-dir
+nx1       = 64        # Number of cells in each MeshBlock, X1-dir
+nx2       = 64        # Number of cells in each MeshBlock, X2-dir
+nx3       = 64        # Number of cells in each MeshBlock, X3-dir
 
 <time>
 evolution  = dynamic  # dynamic/kinematic/static
@@ -39,10 +39,11 @@ tlim       = 100.0      # time limit (4 for the higher mach, 20 for lower)
 ndiag      = 1        # cycles between diagostic output
 
 <hydro>
-eos         = ideal      # EOS type
+eos         = isothermal      # EOS type
+iso_sound_speed = 5.0
 reconstruct = plm        # spatial reconstruction method
-rsolver     = hllc       # Riemann-solver to be used
-gamma       = 1.0000001  # gamma = C_p/C_v
+rsolver     = hlle       # Riemann-solver to be used
+#gamma       = 1.0000001  # gamma = C_p/C_v
 pfloor      = 1e-15
 dfloor      = 1e-15
 sfloor      = 1e-15
@@ -55,9 +56,9 @@ user_srcs = false
 
 <turb_driving>
 type = hydro
-turb_flag = 1  # 1 for decaying, 2 for driven
+turb_flag = 2  # 1 for decaying, 2 for driven
 tcorr = 5.0    # (5 for lower mach number) # ~ L / 2 pi urms
-dedt  = 2e-3 #0.25   # Mach 0.5    # ~ urms^3 / 2 L  # lower mach, dedt=2e-3
+dedt  = 1.0e-4 #0.25   # Mach 0.5    # ~ urms^3 / 2 L  # lower mach, dedt=2e-3
 nlow  = 1      # 4
 nhigh = 3      # 8
 spect_form = 1 # parabolic driving

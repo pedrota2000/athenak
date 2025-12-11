@@ -93,7 +93,7 @@ if (pmbp->phydro != nullptr) {
       Real r3_sq = x1*x1 + (x2-0.2)*(x2-0.2) + x3*x3;
       scalar_value += exp(-r3_sq/(2.0*sigma*sigma));
       
-      u0(m,IEN+1+n,k,j,i) = d_n * scalar_value;
+      u0(m,IM3+1+n,k,j,i) = d_n * scalar_value;
     }
   });
 }
