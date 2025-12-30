@@ -65,9 +65,10 @@ spect_form = 1 # parabolic driving
 npeak = 2
 sol_fraction = 1.0 # solenoidal driving
 
-#<output1>
-#file_type = hst
-#dt        = 0.01
+
+<output1>
+file_type   = rst        # restart dump
+dt          = 0.1        # save restart every 1 time unit
 
 <output2>
 file_type  = bin         # legacy VTK output

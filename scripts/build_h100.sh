@@ -1,6 +1,6 @@
 #!/bin/bash
 module purge
-module load modules/2.3-20240529 slurm cuda/12.3 openmpi/cuda-4.0.7
+module load modules/2.3-20240529 slurm cuda/12.3 openmpi/cuda-4.0.7 hdf5
 
 export LD_PRELOAD=/mnt/sw/fi/cephtweaks/lib/libcephtweaks.so
 export CEPHTWEAKS_LAZYIO=1
@@ -15,6 +15,7 @@ cmake \
   -D Kokkos_ENABLE_CUDA=On \
   -D Kokkos_ARCH_HOPPER90=On \
   -D Athena_ENABLE_MPI=On \
+  -D Athena_ENABLE_HDF5=ON \
   -D PROBLEM=turb \
   -B $build \
   -S $athenak
