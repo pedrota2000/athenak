@@ -1,15 +1,15 @@
 #!/bin/bash
-#SBATCH --job-name=turb_1024_viscous_1gpu
-#SBATCH --partition=gpuxl -C h100 --reservation=rocky9     
+#SBATCH --job-name=turb_128_4gpu
+#SBATCH --partition=gpuxl       
 #SBATCH --nodes=1               # 1 nodes = 4 GPUs
 #SBATCH --ntasks-per-node=4     # 4 tasks per node
 #SBATCH --cpus-per-task=16      
 #SBATCH --gres=gpu:4            # 4 GPUs per node
 #SBATCH --gpus-per-task=1       # 1 GPU per task
 #SBATCH --time=3-00:00:00       
-#SBATCH --mem=0                             
-#SBATCH --output=turb_1024_%j.out
-#SBATCH --error=turb_1024_%j.err
+#SBATCH --mem=0                 
+#SBATCH --output=turb_128_%j.out
+#SBATCH --error=turb_128_%j.err
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=pedro.tarancon@fqa.ub.edu
 
@@ -26,15 +26,15 @@ athenak=/mnt/home/ptarancon/athenak
 build=$athenak/build
 
 # Create run directory
-run_dir=/mnt/ceph/users/ptarancon/runs/turb_1024_run_viscous_$(date +%Y%m%d_%H%M%S)
+run_dir=/mnt/ceph/users/ptarancon/runs/turb_128_run_$(date +%Y%m%d_%H%M%S)
 mkdir -p $run_dir
 cd $run_dir
 
 # Copy input file
-cp $athenak/inputs/custom_tests/3d_turb_big_box_viscous.athinput ./input.athinput
+cp $athenak/inputs/custom_tests/3d_turb_small.athinput ./input.athinput
 
 # Configuration for cleanup
-KEEP_LAST_N_BIN=5     # Keep last 10 bin files
+KEEP_LAST_N_BIN=10      # Keep last 10 bin files
 KEEP_LAST_N_RST=1      # Keep only last restart file
 CHECK_INTERVAL=60      # Check every minute
 
@@ -44,12 +44,12 @@ cleanup_old_snapshots() {
         sleep ${CHECK_INTERVAL}
         
         # Cleanup bin files
-        file_count=$(ls -1 ${run_dir}/bin/Turb.*.bin 2>/dev/null | wc -l)
+        file_count=$(ls -1 ${run_dir}/vtk/Turb.*.vtk 2>/dev/null | wc -l)
         if [ $file_count -gt $KEEP_LAST_N_BIN ]; then
             deleted_count=$((file_count - KEEP_LAST_N_BIN))
-            echo "[$(date)] Found ${file_count} bin files, deleting ${deleted_count} oldest..."
-            ls -1v ${run_dir}/bin/Turb.*.bin 2>/dev/null | head -n ${deleted_count} | xargs rm -f
-            echo "[$(date)] Kept ${KEEP_LAST_N_BIN} most recent bin files."
+            echo "[$(date)] Found ${file_count} vtk files, deleting ${deleted_count} oldest..."
+            ls -1v ${run_dir}/vtk/Turb.*.vtk 2>/dev/null | head -n ${deleted_count} | xargs rm -f
+            echo "[$(date)] Kept ${KEEP_LAST_N_BIN} most recent vtk files."
         fi
         
         # Cleanup restart files - KEEP ONLY LAST ONE
@@ -70,14 +70,14 @@ CLEANUP_PID=$!
 # Trap to ensure cleanup process is killed on exit
 trap "kill $CLEANUP_PID 2>/dev/null; exit" SIGINT SIGTERM EXIT
 
-echo "Starting 1024³ turbulence simulation at $(date)"
+echo "Starting 128³ turbulence simulation at $(date)"
 echo "Running in directory: $run_dir"
-echo "Running on 4 tasks with 1 GPU each"
+echo "Running on 4 GPUs (1 nodes × 4 GPUs)"
 echo "Automatic cleanup enabled:"
 echo "  - Keeping last ${KEEP_LAST_N_BIN} bin snapshots"
 echo "  - Keeping last ${KEEP_LAST_N_RST} restart file"
 
-# Run simulation
+# Run with 4 tasks (1 node × 4 tasks/node)
 srun -n 4 $build/src/athena -i input.athinput
 
 # Kill cleanup process when simulation finishes
@@ -87,10 +87,10 @@ echo "Simulation finished at $(date)"
 echo "Final cleanup..."
 
 # Final cleanup for bin files
-file_count=$(ls -1 ${run_dir}/bin/Turb.*.bin 2>/dev/null | wc -l)
+file_count=$(ls -1 ${run_dir}/vtk/Turb.*.vtk 2>/dev/null | wc -l)
 if [ $file_count -gt $KEEP_LAST_N_BIN ]; then
     deleted_count=$((file_count - KEEP_LAST_N_BIN))
-    ls -1v ${run_dir}/bin/Turb.*.bin | head -n ${deleted_count} | xargs rm -f
+    ls -1v ${run_dir}/vtk/Turb.*.vtk | head -n ${deleted_count} | xargs rm -f
 fi
 
 # Final cleanup for restart files

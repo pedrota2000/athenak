@@ -7,35 +7,35 @@ basename  = Turb      # problem ID: basename of output filenames
 
 <mesh>
 nghost    = 4         # Number of ghost cells
-nx1       = 2048      # Number of zones in X1-direction
+nx1       = 128      # Number of zones in X1-direction
 x1min     = -0.5      # minimum value of X1
 x1max     = 0.5       # maximum value of X1
 ix1_bc    = periodic  # Inner-X1 boundary condition flag
 ox1_bc    = periodic  # Outer-X1 boundary condition flag
 
-nx2       = 2048     # Number of zones in X2-direction
+nx2       = 128     # Number of zones in X2-direction
 x2min     = -0.5      # minimum value of X2
 x2max     = 0.5       # maximum value of X2
 ix2_bc    = periodic  # Inner-X2 boundary condition flag
 ox2_bc    = periodic  # Outer-X2 boundary condition flag
 
-nx3       = 2048      # Number of zones in X3-direction
+nx3       = 128      # Number of zones in X3-direction
 x3min     = -0.5      # minimum value of X3
 x3max     = 0.5       # maximum value of X3
 ix3_bc    = periodic  # Inner-X3 boundary condition flag
 ox3_bc    = periodic  # Outer-X3 boundary condition flag
 
 <meshblock>
-nx1       = 64       # Number of cells in each MeshBlock, X1-dir
-nx2       = 64        # Number of cells in each MeshBlock, X2-dir
-nx3       = 64       # Number of cells in each MeshBlock, X3-dir
+nx1       = 32        # Number of cells in each MeshBlock, X1-dir
+nx2       = 32        # Number of cells in each MeshBlock, X2-dir
+nx3       = 32        # Number of cells in each MeshBlock, X3-dir
 
 <time>
 evolution  = dynamic  # dynamic/kinematic/static
 integrator = rk2      # time integration algorithm
-cfl_number = 0.1      # The Courant, Friedrichs, & Lewy (CFL) Number  # It was 0.3 but with 2048^3 the time step grows exponentially #
+cfl_number = 0.3      # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim       = -1       # cycle limit
-tlim       = 100.0      # time limit (4 for the higher mach, 20 for lower)
+tlim       = 20000.0      # time limit (4 for the higher mach, 20 for lower)
 ndiag      = 1        # cycles between diagostic output
 
 <hydro>
@@ -65,12 +65,13 @@ spect_form = 1 # parabolic driving
 npeak = 2
 sol_fraction = 1.0 # solenoidal driving
 
+
 <output1>
 file_type   = rst        # restart dump
 dt          = 0.1        # save restart every 1 time unit
 
 <output2>
-file_type  = bin         # legacy VTK output
+file_type  = vtk         # legacy VTK output
 variable   = hydro_w     # variables to be output
 dt         = 0.01         # time increment between outputs
 parallel_output = true

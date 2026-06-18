@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=turb_2048_12gpu
+#SBATCH --job-name=turb_2048_40gpu
 #SBATCH --partition=gpuxl       
-#SBATCH --nodes=10               # 10 nodes = 40 GPUs
+#SBATCH --nodes=12               # 12 nodes = 48 GPUs
 #SBATCH --ntasks-per-node=4     # 4 tasks per node
 #SBATCH --cpus-per-task=16      
 #SBATCH --gres=gpu:4            # 4 GPUs per node
@@ -72,13 +72,13 @@ trap "kill $CLEANUP_PID 2>/dev/null; exit" SIGINT SIGTERM EXIT
 
 echo "Starting 2048³ turbulence simulation at $(date)"
 echo "Running in directory: $run_dir"
-echo "Running on 40 GPUs (10 nodes × 4 GPUs)"
+echo "Running on 60 GPUs (14 nodes × 4 GPUs)"
 echo "Automatic cleanup enabled:"
 echo "  - Keeping last ${KEEP_LAST_N_BIN} bin snapshots"
 echo "  - Keeping last ${KEEP_LAST_N_RST} restart file"
 
-# Run with 40 tasks (10 nodes × 4 tasks/node)
-srun -n 40 $build/src/athena -i input.athinput
+# Run with 48 tasks (12 nodes × 4 tasks/node)
+srun -n 48 $build/src/athena -i input.athinput
 
 # Kill cleanup process when simulation finishes
 kill $CLEANUP_PID 2>/dev/null

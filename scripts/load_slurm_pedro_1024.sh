@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=turb_1024_viscous_1gpu
+#SBATCH --job-name=turb_1024_viscous_load
 #SBATCH --partition=gpuxl -C h100 --reservation=rocky9     
 #SBATCH --nodes=1               # 1 nodes = 4 GPUs
 #SBATCH --ntasks-per-node=4     # 4 tasks per node
@@ -25,13 +25,39 @@ export CEPHTWEAKS_LAZYIO=1
 athenak=/mnt/home/ptarancon/athenak
 build=$athenak/build
 
+# IMPORTANT: Set the directory with existing restart file
+# For new run: leave blank or set to empty
+# For restart: set to the previous run directory
+RESTART_DIR=/mnt/ceph/users/ptarancon/runs/turb_1024_run_viscous_20260316_120419
+
 # Create run directory
 run_dir=/mnt/ceph/users/ptarancon/runs/turb_1024_run_viscous_$(date +%Y%m%d_%H%M%S)
 mkdir -p $run_dir
 cd $run_dir
 
-# Copy input file
-cp $athenak/inputs/custom_tests/3d_turb_big_box_viscous.athinput ./input.athinput
+# Check if we're restarting from a previous run
+if [ -n "$RESTART_DIR" ] && [ -d "$RESTART_DIR/rst" ]; then
+    # Find the most recent restart file
+    RESTART_FILE=$(ls -1v ${RESTART_DIR}/rst/Turb.*.rst 2>/dev/null | tail -n 1)
+    
+    if [ -n "$RESTART_FILE" ]; then
+        echo "Found restart file: $RESTART_FILE"
+        # Copy restart file to new run directory
+        mkdir -p $run_dir/rst
+        cp $RESTART_FILE $run_dir/rst/
+        RESTART_FILENAME=$(basename $RESTART_FILE)
+        RESTART_MODE=true
+    else
+        echo "No restart file found in $RESTART_DIR/rst, starting from scratch"
+        RESTART_MODE=false
+    fi
+else
+    echo "No restart directory specified, starting new simulation"
+    RESTART_MODE=false
+fi
+
+# Copy input file (needed even for restarts)
+cp $athenak/inputs/custom_tests/3d_turb.athinput ./input.athinput
 
 # Configuration for cleanup
 KEEP_LAST_N_BIN=5     # Keep last 10 bin files
@@ -77,8 +103,14 @@ echo "Automatic cleanup enabled:"
 echo "  - Keeping last ${KEEP_LAST_N_BIN} bin snapshots"
 echo "  - Keeping last ${KEEP_LAST_N_RST} restart file"
 
-# Run simulation
-srun -n 4 $build/src/athena -i input.athinput
+# Run simulation (with or without restart)
+if [ "$RESTART_MODE" = true ]; then
+    echo "RESTARTING from: $RESTART_FILENAME"
+    srun -n 4 $build/src/athena -r rst/$RESTART_FILENAME
+else
+    echo "STARTING NEW simulation"
+    srun -n 4 $build/src/athena -i input.athinput
+fi
 
 # Kill cleanup process when simulation finishes
 kill $CLEANUP_PID 2>/dev/null
