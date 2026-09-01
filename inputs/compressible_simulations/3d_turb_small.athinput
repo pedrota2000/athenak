@@ -33,25 +33,23 @@ nx3       = 32        # Number of cells in each MeshBlock, X3-dir
 <time>
 evolution  = dynamic  # dynamic/kinematic/static
 integrator = rk2      # time integration algorithm
-cfl_number = 0.3      # The Courant, Friedrichs, & Lewy (CFL) Number
+cfl_number = 0.1      # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim       = -1       # cycle limit
-tlim       = 20000.0      # time limit (4 for the higher mach, 20 for lower)
+tlim       = 100.0      # time limit (4 for the higher mach, 20 for lower)
 ndiag      = 1        # cycles between diagostic output
 
 <hydro>
 eos         = isothermal      # EOS type
-iso_sound_speed = 5.0
+iso_sound_speed = 1.0
 reconstruct = plm        # spatial reconstruction method
-rsolver     = hlle       # Riemann-solver to be used
+rsolver     = roe       # Riemann-solver to be used
 #gamma       = 1.0000001  # gamma = C_p/C_v
-pfloor      = 1e-15
-dfloor      = 1e-15
+pfloor      = 1e-6
+dfloor      = 1e-6   #1e-15
 sfloor      = 1e-15
 tfloor      = 1e-15
 fofc        = true
-nscalars    = 1
-
-
+nscalars    = 0
  
 <problem>
 user_srcs = false
@@ -60,12 +58,17 @@ user_srcs = false
 type = hydro
 turb_flag = 2  # 1 for decaying, 2 for driven
 tcorr = 5.0    # (5 for lower mach number) # ~ L / 2 pi urms
-dedt  = 1.0e-4 #0.25   # Mach 0.5    # ~ urms^3 / 2 L  # lower mach, dedt=2e-3
+dedt  = 2.5e-4  #0.25   # Mach 0.5    # ~ urms^3 / 2 L  # lower mach, dedt=2e-3
 nlow  = 1      # 4
 nhigh = 3      # 8
 spect_form = 1 # parabolic driving
 npeak = 2
 sol_fraction = 1.0 # solenoidal driving
+
+# --- Explicit viscosity (dominates over numerical viscosity) ---
+viscosity       = true
+nu_iso          = 1.0e-3      # isotropic kinematic viscosity [L^2/T]
+                              # use 5e-4 for moderate Re~100 but still > nu_num
 
 
 <output1>
@@ -73,7 +76,7 @@ file_type   = rst        # restart dump
 dt          = 0.1        # save restart every 1 time unit
 
 <output2>
-file_type  = vtk         # legacy VTK output
+file_type  = bin        #vtk         # legacy VTK output
 variable   = hydro_w     # variables to be output
 dt         = 0.01         # time increment between outputs
 parallel_output = true

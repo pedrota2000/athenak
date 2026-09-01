@@ -1,0 +1,112 @@
+<comment>
+problem   = 3D forced compressible turbulence -- RESOLVED PHYSICAL VISCOSITY
+reference = companion to inputs/compressible_simulations (same driving, no explicit nu)
+
+# Difference from inputs/compressible_simulations/*.athinput:
+#   There, "viscosity = true" + "nu_iso = ..." sat in <turb_driving>.  AthenaK
+#   looks up <hydro>/viscosity ONLY, and takes nu from THAT key's value
+#   (src/diffusion/viscosity.cpp:33).  There is no "nu_iso" key anywhere in the
+#   code, so both lines were inert and those runs had nu = 0 (ILES).
+#   Here nu is set the way the code actually reads it: <hydro>/viscosity = <value>.
+
+<job>
+basename  = Turb      # problem ID: basename of output filenames
+
+<mesh>
+nghost    = 4         # Number of ghost cells
+nx1       = 128      # Number of zones in X1-direction
+x1min     = -0.5      # minimum value of X1
+x1max     = 0.5       # maximum value of X1
+ix1_bc    = periodic  # Inner-X1 boundary condition flag
+ox1_bc    = periodic  # Outer-X1 boundary condition flag
+
+nx2       = 128      # Number of zones in X2-direction
+x2min     = -0.5      # minimum value of X2
+x2max     = 0.5       # maximum value of X2
+ix2_bc    = periodic  # Inner-X2 boundary condition flag
+ox2_bc    = periodic  # Outer-X2 boundary condition flag
+
+nx3       = 128      # Number of zones in X3-direction
+x3min     = -0.5      # minimum value of X3
+x3max     = 0.5       # maximum value of X3
+ix3_bc    = periodic  # Inner-X3 boundary condition flag
+ox3_bc    = periodic  # Outer-X3 boundary condition flag
+
+<meshblock>
+nx1       = 32     # Number of cells in each MeshBlock, X1-dir
+nx2       = 32     # Number of cells in each MeshBlock, X2-dir
+nx3       = 32     # Number of cells in each MeshBlock, X3-dir
+
+<time>
+evolution  = dynamic  # dynamic/kinematic/static
+integrator = rk2      # time integration algorithm
+cfl_number = 0.3      # CFL: probe-verified stable with wenoz/hlle; 3.0x faster than 0.1
+nlim       = -1       # cycle limit
+tlim       = 100.0    # time limit
+ndiag      = 1        # cycles between diagnostic output
+
+<hydro>
+eos         = isothermal      # EOS type
+iso_sound_speed = 1.0
+reconstruct = wenoz      # 5th-order WENO-Z; needs nghost>=4 with fofc (hydro.cpp:161)
+rsolver     = hlle       # Riemann-solver to be used
+pfloor      = 1e-6
+dfloor      = 1e-6
+sfloor      = 1e-15
+tfloor      = 1e-15
+fofc        = true
+nscalars    = 0
+
+# --- EXPLICIT ISOTROPIC KINEMATIC VISCOSITY ---
+# This key's VALUE is nu, and it MUST live in <hydro>: hydro.cpp:75 tests
+# DoesParameterExist("hydro","viscosity") (strictly block-scoped) and
+# viscosity.cpp:33 does nu_iso = GetReal(block,"viscosity").  Never write
+# "viscosity = true" (atof("true") == 0) and never add a "nu_iso" line (that key
+# is not read -- it is absent even as a string in the binary).
+# VERIFIED on GPU 2026-08-31: with nu=0.1, dt drops from 2.34e-3 (key in
+# <turb_driving>, ignored) to 3.05e-5 (key here, viscous CFL binds) -- a 76.8x
+# ratio matching cfl*dx^2/(6 nu) to 7 digits.
+# retuned for nhigh=2 from the probe-validated 8.0e-4; that value measured eta/dx = 1.09, Re_lam = 34
+viscosity   = 7.3e-4
+
+<problem>
+user_srcs = false
+
+<turb_driving>
+# Identical to the inviscid runs so the two sets are directly comparable.
+type = hydro
+tcorr = 5.0    # ~ L / 2 pi urms
+dedt  = 2.5e-4 # nominal injection rate (see NOTE below)
+nlow  = 1
+nhigh = 2      # narrowed from 3: pushes the energy-containing scale to
+               # larger scales at fixed N, buying ~1.22x in Re_lambda for free.
+               # Cost: 10 driven modes instead of 30 -> noisier large scales,
+               # so time-average over more turnovers.
+driving_type = 0   # isotropic power law
+expo  = 1.6666667  # driving spectrum exponent (5/3)
+# NOTE: turb_flag / spect_form / npeak / sol_fraction are NOT read by this
+# build (absent from src/ and from the binary) -- kept only to mirror the
+# inviscid inputs.  This driver uses driving_type + expo instead.
+# NOTE: the achieved injection rate is NOT dedt.  The amplitude is normalised
+# on the fresh random field force_tmp but applied to the OU-correlated field
+# force (turb_driver.cpp:800 vs :874), which is only equivalent for tcorr -> 0.
+# With tcorr = 5 >> dt the measured eps is ~0.15-0.21, not 2.5e-4.  Left as-is
+# on purpose: it reproduces the M_rms ~ 0.65 of the inviscid runs.
+turb_flag = 2
+spect_form = 1
+npeak = 2
+sol_fraction = 1.0
+
+<output1>
+file_type   = hst        # volume-integrated time series (mass, momentum, KE) -- ~free
+dt          = 0.1
+
+<output2>
+file_type   = rst        # restart dump
+dt          = 0.1
+
+<output3>
+file_type  = bin
+variable   = hydro_w
+dt         = 0.01
+parallel_output = true

@@ -1,0 +1,44 @@
+# Override file for a DENSE-CADENCE, SOURCE-FREE analysis window.  This -- not the forced
+# spin-up -- is where the data set comes from.
+#
+# Usage:  ./athena -r <run>/rst/fgturb2d.000NN.rst -i analysis_window_decay.athinput \
+#                  -d window_NN
+#
+# dedt = 0 switches the turbulence driver off completely (TurbulenceDriver::AddForcing and
+# ::InitializeModes return immediately, so the fluid is not touched at all -- not even by
+# the c2p round trip and global boost the relativistic branch of the driver performs), and
+# rel_cooling is already off.  With no sources the evolution is the inviscid relativistic
+# conservation law
+#          d_mu T^{mu nu} = 0,   d_mu (rho u^mu) = 0
+# exactly in the continuum, so these snapshots ARE (to perfect-fluid order, and up to
+# numerical error) in the image of the fluid/gravity map, and the measured residual is the
+# error budget of the data set rather than an imposed source.
+#
+# WINDOW LENGTH.  Energy is nearly conserved in freely evolving 2D turbulence (only
+# enstrophy decays), so the flow does not die -- but the SPECTRUM still drifts, because
+# nonlinear transfer continues without a flux to sustain it.  The drift time is the eddy
+# time of the energy-containing scale: for E(k) ~ k^-2 and L/l_f = 24 that is only ~5 x the
+# forcing-scale eddy time t_f = l_f/v_rms ~ 0.14, and less at the intermediate scales that
+# carry the scaling range.  So keep each window well under t_f and take an ENSEMBLE:
+#
+#   tlim - t_restart = 0.10 ~ 0.7 t_f  ->  100 snapshots at dt = 0.001 (~4 timesteps)
+#   x 10 restart files from the spin-up (rst dt = 2.0, i.e. ~14 t_f apart, so independent)
+#   -> ~1000 constraint-satisfying snapshots whose spectra are still the forced-steady ones
+#
+# Verify rather than assume: spec_E is written for every snapshot by fg_residuals.py, so
+# plot it across the window and lengthen or shorten accordingly.
+
+<time>
+tlim  = 20.1       # = restart time + 0.10; EDIT PER RESTART FILE
+
+<turb_driving>
+dedt  = 0.0        # driver completely off
+
+<output2>
+file_type = bin
+variable  = hydro_w
+dt        = 0.001   # ~4 timesteps at 1024^2; 100 snapshots over the window
+
+<output3>
+file_type = rst
+dt        = 100.0   # effectively off during the window

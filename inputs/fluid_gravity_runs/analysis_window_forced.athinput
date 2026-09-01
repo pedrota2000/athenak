@@ -1,0 +1,28 @@
+# Override file for the DENSE-CADENCE analysis window, forcing still ON.
+#
+# Usage:  ./athena -r <run>/rst/fgturb2d.00010.rst -i analysis_window_forced.athinput
+#
+# Parameters given here override those stored in the restart file.  The point of this
+# window is to dump snapshots close enough together in time that d_t T^{mu nu} can be
+# finite-differenced pointwise (dt_out here is ~3-4 hydro timesteps at 1024^2).
+#
+# NOTE: with the driver active, d_mu T^{mu nu} is NOT zero even in the continuum -- it
+# equals the driving force, which is not written out.  But the force has support only in a
+# narrow band around k_f, so the violation is confined to that band: measured on a 128^2
+# test, 100% of the residual power sits in the forcing band and 0.00% below it.  Read the
+# residual band by band (spec_res_* from fg_residuals.py) and restrict claims to k < k_f
+# -- that is the range the metric is reconstructed from anyway, and the range where the
+# derivative expansion converges.  For a *pointwise* error budget, where the force is
+# nonzero in every cell, use analysis_window_decay.athinput instead.
+
+<time>
+tlim  = 20.2       # short window; set to (restart time + ~1 eddy time)
+
+<output2>
+file_type = bin
+variable  = hydro_w
+dt        = 0.001   # ~3-4 timesteps at 1024^2; 200 snapshots over the window
+
+<output3>
+file_type = rst
+dt        = 100.0   # effectively off during the window
