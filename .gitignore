@@ -16,3 +16,15 @@ build*/
 # editor temp files
 *~
 *.swp
+
+# rendered animations (too large for git; 128_v2 alone is 127 MB > GitHub's 100 MB limit)
+*.mp4
+*.mov
+
+# slurm job logs
+*.out
+*.err
+
+# python caches
+__pycache__/
+*.pyc
