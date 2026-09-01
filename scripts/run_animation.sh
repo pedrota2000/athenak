@@ -5,8 +5,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
-#SBATCH --time=02:00:00
-#SBATCH --mem=128G
+#SBATCH --time=06:00:00
+#SBATCH --mem=0G
 #SBATCH --output=animation_%j.out
 #SBATCH --error=animation_%j.err
 #SBATCH --mail-type=ALL
