@@ -39,6 +39,10 @@ class TurbulenceDriver {
   Real tcorr, dedt;
   Real expo, exp_prl, exp_prp;
   int driving_type;
+  // ceiling on e_int/dens applied to relativistic runs inside AddForcing(). Historically
+  // hard-coded to 40; made an input parameter so that the (ultra-)relativistic conformal
+  // limit e_int/dens >> 1 can be reached.  Default reproduces the old behavior.
+  Real eint_over_dens_max;
 
   // functions
   void IncludeInitializeModesTask(std::shared_ptr<TaskList> tl, TaskID start);

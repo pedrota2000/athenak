@@ -56,6 +56,18 @@ TurbulenceDriver::TurbulenceDriver(MeshBlockPack *pp, ParameterInput *pin) :
   nhigh = pin->GetOrAddInteger("turb_driving", "nhigh", 2);
   // driving type
   driving_type = pin->GetOrAddInteger("turb_driving", "driving_type", 0);
+  if (driving_type < 0 || driving_type > 2) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
+              << "<turb_driving>/driving_type = " << driving_type << " not implemented"
+              << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+  if (driving_type == 2 && pp->pmesh->three_d) {
+    std::cout << "### FATAL ERROR in " << __FILE__ << " at line " << __LINE__ << std::endl
+              << "<turb_driving>/driving_type = 2 (2D isotropic solenoidal driving) "
+              << "requires a 2D mesh (<mesh>/nx3 = 1)" << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
   // power-law exponent for isotropic driving
   expo = pin->GetOrAddReal("turb_driving", "expo", 5.0/3.0);
   exp_prp = pin->GetOrAddReal("turb_driving", "exp_prp", 5.0/3.0);
@@ -64,6 +76,8 @@ TurbulenceDriver::TurbulenceDriver(MeshBlockPack *pp, ParameterInput *pin) :
   dedt = pin->GetOrAddReal("turb_driving", "dedt", 0.0);
   // correlation time
   tcorr = pin->GetOrAddReal("turb_driving", "tcorr", 0.0);
+  // ceiling on e_int/dens enforced in AddForcing() for SR/GR runs (see turb_driver.hpp)
+  eint_over_dens_max = pin->GetOrAddReal("turb_driving", "eint_over_dens_max", 40.0);
 
   Real nlow_sqr = nlow*nlow;
   Real nhigh_sqr = nhigh*nhigh;
@@ -88,6 +102,10 @@ TurbulenceDriver::TurbulenceDriver(MeshBlockPack *pp, ParameterInput *pin) :
           } else {
             flag_prl = false;
           }
+        } else if (driving_type == 2) {
+          // 2D isotropic solenoidal driving: in-plane (k_z = 0) modes only
+          nsqr = SQR(nkx) + SQR(nky);
+          flag_prl = (nkz == 0);
         }
         if (nsqr >= nlow_sqr && nsqr <= nhigh_sqr && flag_prl) {
           mode_count++;
@@ -210,6 +228,10 @@ void TurbulenceDriver::Initialize() {
           } else {
             flag_prl = false;
           }
+        } else if (driving_type == 2) {
+          // 2D isotropic solenoidal driving: in-plane (k_z = 0) modes only
+          nsqr = SQR(nkx) + SQR(nky);
+          flag_prl = (nkz == 0);
         }
         if (nsqr >= nlow_sqr && nsqr <= nhigh_sqr && flag_prl) {
           kx = dkx*nkx;
@@ -318,6 +340,8 @@ void TurbulenceDriver::IncludeAddForcingTask(std::shared_ptr<TaskList> tl, TaskI
 // Cannot be included in constructor since (it seems) Kokkos::par_for not allowed in cons.
 
 TaskStatus TurbulenceDriver::InitializeModes(Driver *pdrive, int stage) {
+  // no driving requested: do nothing at all (used for decaying-turbulence restarts)
+  if (dedt <= 0.0) return TaskStatus::complete;
   Mesh *pm = pmy_pack->pmesh;
   auto &indcs = pmy_pack->pmesh->mb_indcs;
   int is = indcs.is, ie = indcs.ie;
@@ -405,6 +429,10 @@ TaskStatus TurbulenceDriver::InitializeModes(Driver *pdrive, int stage) {
           } else {
             flag_prl = false;
           }
+        } else if (driving_type == 2) {
+          // 2D isotropic solenoidal driving: in-plane (k_z = 0) modes only
+          nsqr = SQR(nkx) + SQR(nky);
+          flag_prl = (nkz == 0);
         }
         if (nsqr >= nlow_sqr && nsqr <= nhigh_sqr && flag_prl) {
           kx = dkx*nkx;
@@ -576,6 +604,55 @@ TaskStatus TurbulenceDriver::InitializeModes(Driver *pdrive, int stage) {
               zscs_.h_view(nmode) = 0.0;
               zsss_.h_view(nmode) = 0.0;
             }
+          } else if (driving_type == 2) {
+            // 2D isotropic, exactly solenoidal driving built from a random stream
+            // function psi, F = (-d_y psi, d_x psi, 0), so that d_x F_x + d_y F_y = 0
+            // identically and <|F_k|^2> is isotropic.  This is NOT true of
+            // driving_type = 1, which solves for F_y from F_x by dividing by k_y and
+            // therefore over-drives the small-k_y modes (|F_y| ~ (k_x/k_y) |F_x|).
+            //   psi = pcc cos(kx x)cos(ky y) + pcs cos(kx x)sin(ky y)
+            //       + psc sin(kx x)cos(ky y) + pss sin(kx x)sin(ky y)
+            kiso = sqrt(SQR(kx) + SQR(ky));
+            if (kiso > 1e-16) {
+              norm = 1.0/pow(kiso,(ex+2.0)/2.0);
+            } else {
+              norm = 0.0;
+            }
+            Real ikiso = (kiso > 1e-16) ? 1.0/kiso : 0.0;
+            Real pcc = RanGaussianSt(&(rstate));
+            Real pcs = RanGaussianSt(&(rstate));
+            Real psc = RanGaussianSt(&(rstate));
+            Real pss = RanGaussianSt(&(rstate));
+
+            // F_x = -d_y psi  (the 1/kiso keeps |F| ~ norm, independent of direction)
+            xccc_.h_view(nmode) = -ky*pcs*ikiso;
+            xcsc_.h_view(nmode) =  ky*pcc*ikiso;
+            xscc_.h_view(nmode) = -ky*pss*ikiso;
+            xssc_.h_view(nmode) =  ky*psc*ikiso;
+            xccs_.h_view(nmode) = 0.0;
+            xcss_.h_view(nmode) = 0.0;
+            xscs_.h_view(nmode) = 0.0;
+            xsss_.h_view(nmode) = 0.0;
+
+            // F_y = +d_x psi
+            yccc_.h_view(nmode) =  kx*psc*ikiso;
+            ycsc_.h_view(nmode) =  kx*pss*ikiso;
+            yscc_.h_view(nmode) = -kx*pcc*ikiso;
+            yssc_.h_view(nmode) = -kx*pcs*ikiso;
+            yccs_.h_view(nmode) = 0.0;
+            ycss_.h_view(nmode) = 0.0;
+            yscs_.h_view(nmode) = 0.0;
+            ysss_.h_view(nmode) = 0.0;
+
+            // no out-of-plane force: the run stays strictly 2D (u^z remains zero)
+            zccc_.h_view(nmode) = 0.0;
+            zcsc_.h_view(nmode) = 0.0;
+            zscc_.h_view(nmode) = 0.0;
+            zssc_.h_view(nmode) = 0.0;
+            zccs_.h_view(nmode) = 0.0;
+            zcss_.h_view(nmode) = 0.0;
+            zscs_.h_view(nmode) = 0.0;
+            zsss_.h_view(nmode) = 0.0;
           }
           // normalization
           xccc_.h_view(nmode) *= norm;
@@ -817,6 +894,8 @@ TaskStatus TurbulenceDriver::InitializeModes(Driver *pdrive, int stage) {
 //! \fn apply forcing
 
 TaskStatus TurbulenceDriver::AddForcing(Driver *pdrive, int stage) {
+  // no driving requested: do nothing at all (used for decaying-turbulence restarts)
+  if (dedt <= 0.0) return TaskStatus::complete;
   Mesh *pm = pmy_pack->pmesh;
   auto &indcs = pmy_pack->pmesh->mb_indcs;
   int is = indcs.is, ie = indcs.ie;
@@ -1038,6 +1117,7 @@ TaskStatus TurbulenceDriver::AddForcing(Driver *pdrive, int stage) {
 #endif
 
     // Compute average velocity
+    Real eomax = eint_over_dens_max;
     Real uA_x = t1/t0;
     Real uA_y = t2/t0;
     Real uA_z = t3/t0;
@@ -1057,7 +1137,7 @@ TaskStatus TurbulenceDriver::AddForcing(Driver *pdrive, int stage) {
 
       par_for("net_mom_4",DevExeSpace(),0,nmb-1,ks,ke,js,je,is,ie,
       KOKKOS_LAMBDA(int m, int k, int j, int i) {
-        u0(m,IEN,k,j,i) = fmin(u0(m,IEN,k,j,i), 40.*u0(m,IDN,k,j,i));
+        u0(m,IEN,k,j,i) = fmin(u0(m,IEN,k,j,i), eomax*u0(m,IDN,k,j,i));
 
         // load single state conserved variables
         MHDPrim1D u;
@@ -1105,7 +1185,7 @@ TaskStatus TurbulenceDriver::AddForcing(Driver *pdrive, int stage) {
 
       par_for("net_mom_4",DevExeSpace(),0,nmb-1,ks,ke,js,je,is,ie,
       KOKKOS_LAMBDA(int m, int k, int j, int i) {
-        u0(m,IEN,k,j,i) = fmin(u0(m,IEN,k,j,i), 40.*u0(m,IDN,k,j,i));
+        u0(m,IEN,k,j,i) = fmin(u0(m,IEN,k,j,i), eomax*u0(m,IDN,k,j,i));
 
         // load single state conserved variables
         HydPrim1D u;
